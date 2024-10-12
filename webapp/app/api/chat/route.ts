@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const { prompt } = await request.json();
 
     // Convert Zod schema to JSON Schema
-    const jsonSchema = zodToJsonSchema(vidSchema);
+    const jsonSchema = zodToJsonSchema(vidSchema) as { properties: Record<string, unknown>, required?: string[] };
 
     const response = await openai.chat.completions.create({
       model: "gpt-4",
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
           parameters: {
             type: "object",
             properties: jsonSchema.properties,
-            required: jsonSchema.required,
+            required: jsonSchema.required ?? [],
           },
         },
       ],
