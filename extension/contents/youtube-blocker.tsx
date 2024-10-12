@@ -6,25 +6,38 @@ export const config: PlasmoCSConfig = {
   all_frames: true
 }
 
+interface Video {
+  id: string
+  link: string
+  title: string
+  channel: string
+}
+
+// Mock API function
+const mockApiCall = async (videos: Video[]): Promise<string[]> => {
+  // Simulate API delay
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  // Randomly select about half of the video IDs
+  return videos.filter(() => Math.random() > 0.5).map((video) => video.id)
+}
+
 const YouTubeBlocker: React.FC = () => {
   React.useEffect(() => {
     console.log("YouTubeBlocker")
-    let videoCount = 0
 
-    const blockVideos = () => {
+    const processVideos = async () => {
       const videoSelectors = [
         "ytd-rich-item-renderer",
         "ytd-compact-video-renderer",
         "ytd-video-renderer"
       ]
 
+      let allVideos: Video[] = []
+
       videoSelectors.forEach((selector) => {
         const videoElements = document.querySelectorAll(selector)
-        videoElements.forEach((video) => {
-          if (!video.getAttribute("data-processed")) {
-            videoCount++
-            const shouldBlock = videoCount % 2 === 1
-
+        videoElements.forEach((video, index) => {
+          if (index < 20 && !video.getAttribute("data-processed")) {
             const linkElement = video.querySelector(
               "a#video-title-link"
             ) as HTMLAnchorElement
@@ -38,53 +51,51 @@ const YouTubeBlocker: React.FC = () => {
             const link = linkElement?.href || "N/A"
             const title = titleElement?.textContent?.trim() || "N/A"
             const channel = channelElement?.textContent?.trim() || "N/A"
+            const id = `video-${index}`
 
-            console.log(`Video ${videoCount}:`, {
-              link,
-              title,
-              channel,
-              blocked: shouldBlock ? "Yes (Odd)" : "No (Even)"
-            })
-
-            if (shouldBlock) {
-              const blockedContent = document.createElement("div")
-              blockedContent.textContent = "Video blocked by extension"
-              blockedContent.style.cssText = `
-                width: 100%;
-                height: 100%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background-color: #f0f0f0;
-                color: #333;
-                font-family: Arial, sans-serif;
-                font-size: 14px;
-                text-align: center;
-              `
-
-              // Clear the content of the video element
-              while (video.firstChild) {
-                video.removeChild(video.firstChild)
-              }
-
-              // Add the blocked content
-              video.appendChild(blockedContent)
-            }
-
-            // Mark as processed to avoid processing it again
+            allVideos.push({ id, link, title, channel })
+            video.setAttribute("data-video-id", id)
             video.setAttribute("data-processed", "true")
+          } else if (index >= 20) {
+            // Remove videos beyond the top 20
+            video.remove()
           }
         })
       })
+
+      console.log("Top 20 videos:", allVideos)
+
+      // Simulate API call to get filtered video IDs
+      const filteredIds = await mockApiCall(allVideos)
+      console.log("Filtered video IDs:", filteredIds)
+
+      // Remove videos not in the filtered list
+      videoSelectors.forEach((selector) => {
+        const videoElements = document.querySelectorAll(selector)
+        videoElements.forEach((video) => {
+          const videoId = video.getAttribute("data-video-id")
+          if (videoId && !filteredIds.includes(videoId)) {
+            video.remove()
+          }
+        })
+      })
+
+      // Log remaining videos
+      console.log(
+        "Remaining videos:",
+        filteredIds
+          .map((id) => allVideos.find((v) => v.id === id))
+          .filter(Boolean)
+      )
     }
 
-    blockVideos()
+    processVideos()
 
     // Use MutationObserver to handle dynamically loaded content
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.type === "childList") {
-          blockVideos()
+          processVideos()
         }
       })
     })
