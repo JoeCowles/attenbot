@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Debug Chrome Extension",
+      "url": "http://localhost:8080",
+      "runtimeArgs": [
+        "--load-extension=${workspaceFolder}/extension/build/chrome-mv3-dev"
+      ],
+      "webRoot": "${workspaceFolder}/extension",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "*": "${webRoot}/*"
+      },
+      "outFiles": ["${workspaceFolder}/extension/build/chrome-mv3-dev/*.js"],
+      "trace": true
+      //   "userDataDir": false
+    }
+  ]
+}
