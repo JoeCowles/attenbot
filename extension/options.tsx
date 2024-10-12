@@ -10,6 +10,21 @@ import { supabase } from "~core/supabase"
 import "./style.css"
 
 function IndexOptions() {
+
+  const [selectStudentScreen, setSelectStudentScreen] = useState(false)
+  const [students, setStudents] = useState<any[]>([])
+  const [accessToken, setAccessToken] = useStorage<string>({
+    key: "accessToken",
+    instance: new Storage({
+      area: "local"
+    })
+  })
+  const [refreshToken, setRefreshToken] = useStorage<string>({
+    key: "refreshToken",
+    instance: new Storage({
+      area: "local"
+    })
+  })
   const [user, setUser] = useStorage<User>({
     key: "user",
     instance: new Storage({
@@ -19,29 +34,75 @@ function IndexOptions() {
 
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [data, setData] = useState<any>(null)
+
 
   useEffect(() => {
     async function init() {
-      const { data, error } = await supabase.auth.getSession()
+      const { data: { session }, error } = await supabase.auth.getSession()
 
       if (error) {
         console.error(error)
         return
       }
-      if (!!data.session) {
-        setUser(data.session.user)
-        sendToBackground({
-          name: "init-session",
-          body: {
-            refresh_token: data.session.refresh_token,
-            access_token: data.session.access_token
-          }
-        })
+      if (session) {
+        setUser(session.user)
+        setAccessToken(session.access_token)
+        setRefreshToken(session.refresh_token)
+        setSelectStudentScreen(true)
+        fetchStudents()
+      } else {
+        console.log("No active session")
+        // Redirect to login or show login form
       }
     }
 
     init()
   }, [])
+
+  const fetchStudents = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        console.error('No active session')
+        return
+      }
+
+      console.log('Fetching students with token:', session.access_token)
+
+      const response = await fetch('http://localhost:3000/api/select-student', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      console.log('Response status:', response.status)
+      if (response.ok) {
+        const studentsData = await response.json()
+        console.log('Students data:', studentsData)
+        setStudents(studentsData)
+      } else {
+        const errorText = await response.text()
+        console.error('Failed to fetch students:', response.status, errorText)
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error)
+    }
+  }
+
+  const handleStudentSelect = (studentId: string) => {
+    sendToBackground({
+      name: "init-session",
+      body: {
+        refresh_token: refreshToken,
+        access_token: accessToken,
+        student_id: studentId
+      }
+    })
+    setSelectStudentScreen(false)
+  }
 
   const handleEmailLogin = async (
     type: "LOGIN" | "SIGNUP",
@@ -59,7 +120,9 @@ function IndexOptions() {
               password
             })
           : await supabase.auth.signUp({ email: username, password })
-
+      setData(data)
+      fetchStudents()
+      setSelectStudentScreen(true)
       if (error) {
         alert("Error with auth: " + error.message)
       } else if (!user) {
@@ -81,6 +144,23 @@ function IndexOptions() {
         redirectTo: location.href
       }
     })
+  }
+
+  if (selectStudentScreen) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <h1 className="text-2xl font-bold mb-4">Select Student Profile</h1>
+        {students.map((student) => (
+          <button
+            key={student.id}
+            onClick={() => handleStudentSelect(student.id)}
+            className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 mb-2 w-60"
+          >
+            {student.name}
+          </button>
+        ))}
+      </div>
+    )
   }
 
   return (
