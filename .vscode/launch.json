@@ -17,6 +17,62 @@
       "outFiles": ["${workspaceFolder}/extension/build/chrome-mv3-dev/*.js"],
       "trace": true
       //   "userDataDir": false
+    },
+    {
+      "name": "Next.js: debug server-side",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run next-dev",
+      "cwd": "${workspaceFolder}/webpage"
+    },
+    {
+      "name": "Next.js: debug client-side",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "cwd": "${workspaceFolder}/webpage"
+    },
+    {
+      "name": "Next.js: debug full stack",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run next-dev",
+      "serverReadyAction": {
+        "pattern": "- Local:.+(https?://.+)",
+        "uriFormat": "%s",
+        "action": "debugWithChrome"
+      },
+      "cwd": "${workspaceFolder}/webpage"
+    },
+    {
+      "name": "FastAPI: debug",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["api.index:app", "--reload"],
+      "cwd": "${workspaceFolder}/webpage",
+      "jinja": true,
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/webpage/venv/lib/bin/python"
+      }
+    },
+    {
+      "name": "Python Debugger: Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/webpage",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/webpage/venv/lib/bin/python"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Next.js + FastAPI: debug full stack",
+      "configurations": ["Next.js: debug full stack", "FastAPI: debug"]
     }
   ]
 }
