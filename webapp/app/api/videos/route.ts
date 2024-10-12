@@ -1,6 +1,10 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -10,8 +14,6 @@ export async function GET(request: Request) {
   if (!student_id) {
     return NextResponse.json({ error: 'Student ID is required' }, { status: 400 })
   }
-
-  const supabase = createRouteHandlerClient({ cookies })
 
   // Calculate the start and end dates for the week
   const now = new Date()
