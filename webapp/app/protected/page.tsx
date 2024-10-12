@@ -25,8 +25,14 @@ const activityData = [
   { name: "Sun", minutes: 90 },
 ]
 
-const FilterSection = ({ filters, addFilter }: { filters: string[], addFilter: (filter: string) => void }) => {
+const FilterSection = ({ filters, addFilter, removeFilter, updateFilter }: { 
+  filters: string[], 
+  addFilter: (filter: string) => void,
+  removeFilter: (filter: string) => void,
+  updateFilter: (oldFilter: string, newFilter: string) => void
+}) => {
   const [newFilter, setNewFilter] = useState('');
+  const [editingFilter, setEditingFilter] = useState<string | null>(null);
 
   const samplePrompts = [
     "I don't want my child watching Mr Beast",
@@ -44,39 +50,74 @@ const FilterSection = ({ filters, addFilter }: { filters: string[], addFilter: (
 
   const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      handleAddFilter();
+      if (editingFilter) {
+        updateFilter(editingFilter, e.currentTarget.value);
+        setEditingFilter(null);
+      } else {
+        handleAddFilter();
+      }
     }
   };
 
+  const handleDoubleClick = (filter: string) => {
+    setEditingFilter(filter);
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>, oldFilter: string) => {
+    updateFilter(oldFilter, e.target.value);
+    setEditingFilter(null);
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex space-x-2">
-        <Input
-          type="text"
-          value={newFilter}
-          onChange={(e) => setNewFilter(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Enter a filter..."
-        />
-        <Button onClick={handleAddFilter}>Add Filter</Button>
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <div className="flex space-x-2">
+          <Input
+            type="text"
+            value={newFilter}
+            onChange={(e) => setNewFilter(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Enter a filter..."
+          />
+          <Button onClick={handleAddFilter}>Add Filter</Button>
+        </div>
+        
+        <div className="flex flex-wrap gap-2">
+          {filters.map((filter, index) => (
+            <div key={index} className="flex items-center bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm">
+              {editingFilter === filter ? (
+                <Input
+                  type="text"
+                  defaultValue={filter}
+                  onKeyPress={handleKeyPress}
+                  onBlur={(e) => handleBlur(e, filter)}
+                  autoFocus
+                  className="w-full p-0 bg-transparent border-none focus:ring-0"
+                />
+              ) : (
+                <span onDoubleClick={() => handleDoubleClick(filter)}>{filter}</span>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-2 p-0 h-auto"
+                onClick={() => removeFilter(filter)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
       </div>
       
-      <div className="flex flex-wrap gap-2">
-        {filters.map((filter, index) => (
-          <div key={index} className="bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm">
-            {filter}
-          </div>
-        ))}
-      </div>
-      
-      <div className="mt-4">
-        <h3 className="text-sm font-medium mb-2">Suggested Filters:</h3>
+      <div className="mt-8">
+        <h3 className="text-sm font-medium mb-3">Example Filters:</h3>
         <div className="flex flex-wrap gap-2">
           {samplePrompts.map((prompt, index) => (
             <Button 
               key={index}
               variant="outline"
-              className="border border-dotted"
+              className="border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors"
               onClick={() => addFilter(prompt)}
             >
               {prompt}
@@ -200,26 +241,77 @@ export default function ParentDashboard() {
     }
   };
 
-  const removeFilter = async (filter: string) => {
+  const removeFilter = async (filterToRemove: string) => {
     if (selectedStudent) {
-      const updatedFilters = selectedStudent.filters.filter((f) => f !== filter)
-      const response = await fetch('/api/students', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          student_id: selectedStudent.student_id,
-          filters: updatedFilters,
-        }),
-      })
-      const updatedStudent = await response.json()
-      setSelectedStudent(updatedStudent)
-      setStudentAccounts(studentAccounts.map(student => 
-        student.student_id === updatedStudent.student_id ? updatedStudent : student
-      ))
+      const updatedFilters = selectedStudent.filters.filter((filter) => filter !== filterToRemove);
+      const updatedStudent = {
+        ...selectedStudent,
+        filters: updatedFilters,
+      };
+      setSelectedStudent(updatedStudent);
+      setStudentAccounts(prevAccounts =>
+        prevAccounts.map(student =>
+          student.student_id === updatedStudent.student_id ? updatedStudent : student
+        )
+      );
+
+      // API call to update filters
+      try {
+        const response = await fetch('/api/students', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            student_id: selectedStudent.student_id,
+            filters: updatedFilters,
+          }),
+        });
+        if (!response.ok) {
+          console.error('Error updating filters on server');
+        }
+      } catch (error) {
+        console.error('Error removing filter:', error);
+      }
     }
-  }
+  };
+
+  const updateFilter = async (oldFilter: string, newFilter: string) => {
+    if (selectedStudent) {
+      const updatedFilters = selectedStudent.filters.map(filter => 
+        filter === oldFilter ? newFilter : filter
+      );
+      const updatedStudent = {
+        ...selectedStudent,
+        filters: updatedFilters,
+      };
+      setSelectedStudent(updatedStudent);
+      setStudentAccounts(prevAccounts =>
+        prevAccounts.map(student =>
+          student.student_id === updatedStudent.student_id ? updatedStudent : student
+        )
+      );
+
+      // API call to update filters
+      try {
+        const response = await fetch('/api/students', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            student_id: selectedStudent.student_id,
+            filters: updatedFilters,
+          }),
+        });
+        if (!response.ok) {
+          console.error('Error updating filters on server');
+        }
+      } catch (error) {
+        console.error('Error updating filter:', error);
+      }
+    }
+  };
 
   const addNewStudent = async (name: string) => {
     try {
@@ -373,6 +465,8 @@ export default function ParentDashboard() {
                         <FilterSection 
                           filters={selectedStudent.filters ?? []} 
                           addFilter={addFilter}
+                          removeFilter={removeFilter}
+                          updateFilter={updateFilter}
                         />
                       </CardContent>
                     </Card>
