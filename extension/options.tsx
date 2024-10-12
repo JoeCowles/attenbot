@@ -7,6 +7,8 @@ import { useStorage } from "@plasmohq/storage/hook"
 
 import { supabase } from "~core/supabase"
 
+import "./style.css"
+
 function IndexOptions() {
   const [user, setUser] = useStorage<User>({
     key: "user",
@@ -82,29 +84,15 @@ function IndexOptions() {
   }
 
   return (
-    <main
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        width: "100%",
-        top: 240,
-        position: "relative"
-      }}>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          width: 240,
-          justifyContent: "space-between",
-          gap: 4.2
-        }}>
+    <main className="flex justify-center items-center w-full absolute top-60">
+      <div className="flex flex-col w-60 justify-between gap-4">
         {user && (
           <>
             <h3>
               {user.email} - {user.id}
             </h3>
             <button
+              className="bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600"
               onClick={() => {
                 supabase.auth.signOut()
                 setUser(null)
@@ -115,28 +103,34 @@ function IndexOptions() {
         )}
         {!user && (
           <>
-            <label>Email</label>
+            <label className="text-sm font-medium text-gray-700">Email</label>
             <input
               type="text"
               placeholder="Your Username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
             />
-            <label>Password</label>
+            <label className="text-sm font-medium text-gray-700">
+              Password
+            </label>
             <input
               type="password"
               placeholder="Your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
             />
 
             <button
+              className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
               onClick={(e) => {
                 handleEmailLogin("SIGNUP", username, password)
               }}>
               Sign up
             </button>
             <button
+              className="bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600"
               onClick={(e) => {
                 handleEmailLogin("LOGIN", username, password)
               }}>
@@ -144,6 +138,7 @@ function IndexOptions() {
             </button>
 
             <button
+              className="bg-gray-800 text-white py-2 px-4 rounded hover:bg-gray-900"
               onClick={(e) => {
                 handleOAuthLogin("github")
               }}>
