@@ -14,12 +14,12 @@ const openai = new OpenAI({
 export async function POST(request: NextRequest) {
   try {
     const { prompt } = await request.json();
-    
+
     // Convert Zod schema to JSON Schema
     const jsonSchema = zodToJsonSchema(vidSchema) as { properties: Record<string, unknown>, required?: string[] };
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
