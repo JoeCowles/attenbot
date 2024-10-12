@@ -2,8 +2,8 @@
   "name": "attenbot",
   "displayName": "Attenbot",
   "version": "0.0.1",
-  "description": "A basic Plasmo extension.",
-  "author": "Plasmo Corp. <foss@plasmo.com>",
+  "description": "A chrome extension to track youtube videos.",
+  "author": "Attenbot Corp. <dev@attenbot.com>",
   "scripts": {
     "dev": "plasmo dev",
     "build": "plasmo build",
@@ -33,6 +33,7 @@
   "manifest": {
     "key": "$CRX_KEY",
     "host_permissions": [
+      "http://localhost:3000/*",
       "https://*/*"
     ],
     "web_accessible_resources": [
