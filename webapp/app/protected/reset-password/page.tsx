@@ -1,8 +1,8 @@
-import { resetPasswordAction } from "@/webapp/app/actions";
-import { FormMessage, Message } from "@/webapp/components/form-message";
-import { SubmitButton } from "@/webapp/components/submit-button";
-import { Input } from "@/webapp/components/ui/input";
-import { Label } from "@/webapp/components/ui/label";
+import { resetPasswordAction } from "@/app/actions";
+import { FormMessage, Message } from "@/components/form-message";
+import { SubmitButton } from "@/components/submit-button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default async function ResetPassword({
   searchParams,

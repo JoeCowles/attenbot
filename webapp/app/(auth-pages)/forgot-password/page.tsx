@@ -1,8 +1,8 @@
-import { forgotPasswordAction } from "@/webapp/app/actions";
-import { FormMessage, Message } from "@/webapp/components/form-message";
-import { SubmitButton } from "@/webapp/components/submit-button";
-import { Input } from "@/webapp/components/ui/input";
-import { Label } from "@/webapp/components/ui/label";
+import { forgotPasswordAction } from "@/app/actions";
+import { FormMessage, Message } from "@/components/form-message";
+import { SubmitButton } from "@/components/submit-button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { SmtpMessage } from "../smtp-message";
 
