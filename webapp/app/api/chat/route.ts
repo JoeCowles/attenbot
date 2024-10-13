@@ -2,9 +2,10 @@ import { OpenAI } from "openai";
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { createClient } from "@/utils/supabase/server";
 
 export const vidSchema = z.object({
-  ids: z.array(z.string()),
+  links: z.array(z.string()),
 });
 
 const openai = new OpenAI({
@@ -12,30 +13,43 @@ const openai = new OpenAI({
 });
 
 export async function POST(request: NextRequest) {
+  const supabase = createClient()
   try {
-    const { prompt } = await request.json();
+    const { prompt, data, studentId } = await request.json();
+    // Get the Student's filters from the database
+    console.log("Student ID:", studentId)
+    const { data: filtersData, error } = await supabase.from("students").select("filters").eq("student_id", studentId).single();
+    if (error) {
+      console.error("Error fetching filters:", error);
+      return NextResponse.json({ error: "Error fetching filters" }, { status: 500 });
+    }
 
+    const filters = filtersData?.filters || [];
+
+    console.log(prompt)
+    console.log(data)
+    console.log("Filters:", filters)
     // Convert Zod schema to JSON Schema
     const jsonSchema = zodToJsonSchema(vidSchema) as { properties: Record<string, unknown>, required?: string[] };
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
           content:
-            "Your job is to create a JSON object that contains a list of ids for YouTube videos. You work as a filter for YouTube videos. You will be given a list of things that the user doesn't want to see; you will need to filter out anything that doesn't fit the criteria. Make sure to return only JSON.",
+            "Your job is to create a JSON object that contains a list of links for YouTube videos. You work as a filter for YouTube videos. You will be given a list of things that the user doesn't want to see; you will need to filter out anything that doesn't fit the criteria. Make sure to return only JSON.",
         },
         {
           role: "user",
-          content: prompt,
+          content: `Prompt: ${prompt}\n\nData: ${JSON.stringify(data)}\n\nFilters: ${JSON.stringify(filters)}`,
         },
       ],
       functions: [
         {
-          name: "get_video_ids",
+          name: "get_video_links",
           description:
-            "Returns a list of YouTube video IDs that meet the criteria.",
+            "Returns a list of YouTube video links that meet the criteria.",
           parameters: {
             type: "object",
             properties: jsonSchema.properties,
@@ -43,7 +57,7 @@ export async function POST(request: NextRequest) {
           },
         },
       ],
-      function_call: { name: "get_video_ids" },
+      function_call: { name: "get_video_links" },
     });
 
     const functionCall = response.choices[0].message.function_call;
@@ -53,6 +67,7 @@ export async function POST(request: NextRequest) {
       const parsedData = vidSchema.safeParse(args);
 
       if (parsedData.success) {
+        console.log(parsedData.data)
         return NextResponse.json(parsedData.data);
       } else {
         return NextResponse.json(

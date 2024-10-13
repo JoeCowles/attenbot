@@ -35,6 +35,7 @@ function IndexOptions() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [data, setData] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
 
   useEffect(() => {
@@ -61,6 +62,7 @@ function IndexOptions() {
   }, [])
 
   const fetchStudents = async () => {
+    setIsLoading(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
@@ -89,6 +91,8 @@ function IndexOptions() {
       }
     } catch (error) {
       console.error('Error fetching students:', error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -150,15 +154,19 @@ function IndexOptions() {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <h1 className="text-2xl font-bold mb-4">Select Student Profile</h1>
-        {students.map((student) => (
-          <button
-            key={student.id}
-            onClick={() => handleStudentSelect(student.id)}
-            className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 mb-2 w-60"
-          >
-            {student.name}
-          </button>
-        ))}
+        {isLoading ? (
+          <div className="text-lg">Loading students...</div>
+        ) : (
+          students.map((student) => (
+            <button
+              key={student.student_id}
+              onClick={() => handleStudentSelect(student.student_id)}
+              className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 mb-2 w-60"
+            >
+              {student.name}
+            </button>
+          ))
+        )}
       </div>
     )
   }

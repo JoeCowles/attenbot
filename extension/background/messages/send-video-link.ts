@@ -4,7 +4,6 @@ import { Storage } from "@plasmohq/storage"
 const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
   const storage = new Storage()
   const studentId = await storage.get("selectedStudentId")
-
   if (!studentId) {
     res.send({ success: false, error: "No student selected" })
     return
@@ -22,7 +21,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
         videoId: url,
         studentId: studentId,
         title: title,
-        image: '' // We're not handling images as per your request
+        image: ''
       })
     })
 
