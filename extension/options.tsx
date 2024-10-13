@@ -10,39 +10,39 @@ import { supabase } from "~core/supabase"
 import "./style.css"
 
 function IndexOptions() {
-
   const [selectStudentScreen, setSelectStudentScreen] = useState(false)
   const [students, setStudents] = useState<any[]>([])
   const [accessToken, setAccessToken] = useStorage<string>({
     key: "accessToken",
-    instance: new Storage({
-      area: "local"
-    })
+    instance: new Storage({ area: "local" })
   })
   const [refreshToken, setRefreshToken] = useStorage<string>({
     key: "refreshToken",
-    instance: new Storage({
-      area: "local"
-    })
+    instance: new Storage({ area: "local" })
   })
   const [user, setUser] = useStorage<User>({
     key: "user",
-    instance: new Storage({
-      area: "local"
-    })
+    instance: new Storage({ area: "local" })
   })
 
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [data, setData] = useState<any>(null)
-
+  const [isLoading, setIsLoading] = useState(true)
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
+  const [isFetchingStudents, setIsFetchingStudents] = useState(false)
 
   useEffect(() => {
     async function init() {
-      const { data: { session }, error } = await supabase.auth.getSession()
+      setIsLoading(true)
+      const {
+        data: { session },
+        error
+      } = await supabase.auth.getSession()
 
       if (error) {
         console.error(error)
+        setIsLoading(false)
         return
       }
       if (session) {
@@ -50,45 +50,50 @@ function IndexOptions() {
         setAccessToken(session.access_token)
         setRefreshToken(session.refresh_token)
         setSelectStudentScreen(true)
-        fetchStudents()
+        await fetchStudents()
       } else {
         console.log("No active session")
-        // Redirect to login or show login form
       }
+      setIsLoading(false)
     }
 
     init()
   }, [])
 
   const fetchStudents = async () => {
+    setIsFetchingStudents(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session }
+      } = await supabase.auth.getSession()
       if (!session) {
-        console.error('No active session')
+        console.error("No active session")
         return
       }
 
-      console.log('Fetching students with token:', session.access_token)
+      console.log("Fetching students with token:", session.access_token)
 
-      const response = await fetch('http://localhost:3000/api/select-student', {
-        method: 'GET',
-        credentials: 'include',
+      const response = await fetch("http://localhost:3000/api/select-student", {
+        method: "GET",
+        credentials: "include",
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json"
         }
       })
-      console.log('Response status:', response.status)
+      console.log("Response status:", response.status)
       if (response.ok) {
         const studentsData = await response.json()
-        console.log('Students data:', studentsData)
+        console.log("Students data:", studentsData)
         setStudents(studentsData)
       } else {
         const errorText = await response.text()
-        console.error('Failed to fetch students:', response.status, errorText)
+        console.error("Failed to fetch students:", response.status, errorText)
       }
     } catch (error) {
-      console.error('Error fetching students:', error)
+      console.error("Error fetching students:", error)
+    } finally {
+      setIsFetchingStudents(false)
     }
   }
 
@@ -109,6 +114,7 @@ function IndexOptions() {
     username: string,
     password: string
   ) => {
+    setIsAuthenticating(true)
     try {
       const {
         error,
@@ -121,7 +127,7 @@ function IndexOptions() {
             })
           : await supabase.auth.signUp({ email: username, password })
       setData(data)
-      fetchStudents()
+      await fetchStudents()
       setSelectStudentScreen(true)
       if (error) {
         alert("Error with auth: " + error.message)
@@ -133,46 +139,68 @@ function IndexOptions() {
     } catch (error) {
       console.log("error", error)
       alert(error.error_description || error)
+    } finally {
+      setIsAuthenticating(false)
     }
   }
 
   const handleOAuthLogin = async (provider: Provider, scopes = "email") => {
-    await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        scopes,
-        redirectTo: location.href
-      }
-    })
+    setIsAuthenticating(true)
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          scopes,
+          redirectTo: location.href
+        }
+      })
+    } catch (error) {
+      console.error("OAuth login error:", error)
+      alert("Error during OAuth login. Please try again.")
+    } finally {
+      setIsAuthenticating(false)
+    }
+  }
+
+  // TODO: make this look better
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="w-16 h-16 border-t-2 border-b-2 border-blue-500 rounded-full animate-spin"></div>
+      </div>
+    )
   }
 
   if (selectStudentScreen) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
-        <h1 className="text-2xl font-bold mb-4">Select Student Profile</h1>
-        {students.map((student) => (
-          <button
-            key={student.id}
-            onClick={() => handleStudentSelect(student.id)}
-            className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 mb-2 w-60"
-          >
-            {student.name}
-          </button>
-        ))}
+        <h1 className="mb-4 text-2xl font-bold">Select Student Profile</h1>
+        {isFetchingStudents ? (
+          <p>Loading students...</p>
+        ) : (
+          students.map((student) => (
+            <button
+              key={student.id}
+              onClick={() => handleStudentSelect(student.id)}
+              className="px-4 py-2 mb-2 text-white bg-blue-500 rounded hover:bg-blue-600 w-60">
+              {student.name}
+            </button>
+          ))
+        )}
       </div>
     )
   }
 
   return (
-    <main className="flex justify-center items-center w-full absolute top-60">
-      <div className="flex flex-col w-60 justify-between gap-4">
+    <main className="absolute flex items-center justify-center w-full top-60">
+      <div className="flex flex-col justify-between gap-4 w-60">
         {user && (
           <>
             <h3>
               {user.email} - {user.id}
             </h3>
             <button
-              className="bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600"
+              className="px-4 py-2 text-white bg-red-500 rounded hover:bg-red-600"
               onClick={() => {
                 supabase.auth.signOut()
                 setUser(null)
@@ -189,7 +217,7 @@ function IndexOptions() {
               placeholder="Your Username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+              className="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
             />
             <label className="text-sm font-medium text-gray-700">
               Password
@@ -199,30 +227,27 @@ function IndexOptions() {
               placeholder="Your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+              className="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
             />
 
             <button
-              className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-              onClick={(e) => {
-                handleEmailLogin("SIGNUP", username, password)
-              }}>
-              Sign up
+              className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600 disabled:bg-blue-300"
+              onClick={() => handleEmailLogin("SIGNUP", username, password)}
+              disabled={isAuthenticating}>
+              {isAuthenticating ? "Signing up..." : "Sign up"}
             </button>
             <button
-              className="bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600"
-              onClick={(e) => {
-                handleEmailLogin("LOGIN", username, password)
-              }}>
-              Login
+              className="px-4 py-2 text-white bg-green-500 rounded hover:bg-green-600 disabled:bg-green-300"
+              onClick={() => handleEmailLogin("LOGIN", username, password)}
+              disabled={isAuthenticating}>
+              {isAuthenticating ? "Logging in..." : "Login"}
             </button>
 
             <button
-              className="bg-gray-800 text-white py-2 px-4 rounded hover:bg-gray-900"
-              onClick={(e) => {
-                handleOAuthLogin("github")
-              }}>
-              Sign in with GitHub
+              className="px-4 py-2 text-white bg-gray-800 rounded hover:bg-gray-900 disabled:bg-gray-500"
+              onClick={() => handleOAuthLogin("github")}
+              disabled={isAuthenticating}>
+              {isAuthenticating ? "Signing in..." : "Sign in with GitHub"}
             </button>
           </>
         )}
