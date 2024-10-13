@@ -1,6 +1,7 @@
 import debounce from "lodash/debounce"
 import type { PlasmoCSConfig } from "plasmo"
 import React from "react"
+
 import { sendToBackground } from "@plasmohq/messaging"
 
 export const config: PlasmoCSConfig = {
