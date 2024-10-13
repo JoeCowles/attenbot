@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   // Calculate the start and end dates for the week
   const now = new Date()
   const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() - (7 * weekOffset))
-  const endOfWeek = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + 6)
+  const endOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) // Set to tomorrow at 00:00
 
   try {
     const { data, error } = await supabase

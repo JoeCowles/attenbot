@@ -477,15 +477,22 @@ export default function ParentDashboard() {
                       </CardHeader>
                       <CardContent>
                         <ScrollArea className="h-[300px]">
-                          {videoData.map((video) => (
-                            <div key={video.id} className="flex items-center space-x-4 mb-4">
-                              <img src={video.image} alt={video.title} className="w-16 h-16 object-cover rounded" />
-                              <div>
-                                <p className="font-medium">{video.title}</p>
-                                <p className="text-sm text-gray-500">{new Date(video.timestamp).toLocaleString()}</p>
+                          {videoData.map((video) => {
+                            const thumbnailUrl = video.id ? `https://img.youtube.com/vi/${video.id}/0.jpg` : '/placeholder.svg';
+                            return (
+                              <div key={video.id} className="flex items-center space-x-4 mb-4">
+                                <img 
+                                  src={thumbnailUrl}
+                                  alt={video.title} 
+                                  className="w-16 h-16 object-cover rounded" 
+                                />
+                                <div>
+                                  <p className="font-medium">{video.title}</p>
+                                  <p className="text-sm text-gray-500">{new Date(video.timestamp).toLocaleString()}</p>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </ScrollArea>
                       </CardContent>
                     </Card>
