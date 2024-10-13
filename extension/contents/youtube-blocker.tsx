@@ -1,3 +1,4 @@
+import debounce from "lodash/debounce"
 import type { PlasmoCSConfig } from "plasmo"
 import React from "react"
 
@@ -8,50 +9,95 @@ export const config: PlasmoCSConfig = {
 
 const YouTubeBlocker: React.FC = () => {
   const [isInitialized, setIsInitialized] = React.useState(false)
-  const [allItems, setAllItems] = React.useState<Element[]>([])
+  const allItemsRef = React.useRef<Element[]>([])
+  const processingRef = React.useRef(false)
 
-  React.useEffect(() => {
-    const processYouTubePage = () => {
-      // Collect all ytd-rich-item-renderer elements
-      const items = Array.from(
-        document.querySelectorAll("ytd-rich-item-renderer")
-      )
-      setAllItems(items)
+  const processYouTubePage = React.useCallback(() => {
+    if (processingRef.current) return
+    processingRef.current = true
 
-      // Find the contents container
-      const contentsContainer = document.querySelector(
-        "div#contents.style-scope.ytd-rich-grid-renderer"
-      )
+    // Collect all ytd-rich-item-renderer elements
+    const items = Array.from(
+      document.querySelectorAll("ytd-rich-item-renderer")
+    )
+    allItemsRef.current = items
 
-      if (contentsContainer) {
+    // Find the contents container
+    const contentsContainer = document.querySelector(
+      "div#contents.style-scope.ytd-rich-grid-renderer"
+    )
+
+    if (contentsContainer) {
+      const currentItems = Array.from(contentsContainer.children)
+      const itemsToKeep = items.slice(0, 3)
+
+      // Only update if the content has changed
+      if (
+        currentItems.length !== itemsToKeep.length ||
+        !currentItems.every((item, index) => item === itemsToKeep[index])
+      ) {
         // Clear the contents
         contentsContainer.innerHTML = ""
 
         // Add back the top 3 items
-        items.slice(0, 3).forEach((item) => {
+        itemsToKeep.forEach((item) => {
           contentsContainer.appendChild(item)
         })
       }
-
-      // Remove chips
-      const chipsContainer = document.querySelector(
-        "#scroll-container > .ytd-feed-filter-chip-bar-renderer"
-      )
-      if (chipsContainer) {
-        console.log("Removing chips container")
-        chipsContainer.remove()
-      }
     }
 
-    // Add a 2-second delay before initializing
+    // Remove chips
+    const chipsContainer = document.querySelector(
+      "#scroll-container > .ytd-feed-filter-chip-bar-renderer"
+    )
+    if (chipsContainer) {
+      console.log("Removing chips container")
+      chipsContainer.remove()
+    }
+
+    processingRef.current = false
+  }, [])
+
+  const debouncedProcessYouTubePage = React.useMemo(
+    () => debounce(processYouTubePage, 200),
+    [processYouTubePage]
+  )
+
+  React.useEffect(() => {
     const timer = setTimeout(() => {
       processYouTubePage()
       setIsInitialized(true)
+
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+            const newVideos = Array.from(mutation.addedNodes).filter(
+              (node) =>
+                node instanceof Element &&
+                node.matches("ytd-rich-item-renderer")
+            )
+
+            if (newVideos.length > 0) {
+              console.log("New videos detected, reprocessing page")
+              debouncedProcessYouTubePage()
+            }
+          }
+        })
+      })
+
+      const contentsContainer = document.querySelector(
+        "div#contents.style-scope.ytd-rich-grid-renderer"
+      )
+      if (contentsContainer) {
+        observer.observe(contentsContainer, { childList: true, subtree: true })
+      }
     }, 2000)
 
-    // Clean up the timer if the component unmounts
-    return () => clearTimeout(timer)
-  }, [])
+    return () => {
+      clearTimeout(timer)
+      debouncedProcessYouTubePage.cancel()
+    }
+  }, [debouncedProcessYouTubePage])
 
   // Add a subtle loading overlay
   if (!isInitialized) {
