@@ -16,6 +16,13 @@ const YouTubeBlocker: React.FC = () => {
     if (processingRef.current || window.location.pathname !== "/") return
     processingRef.current = true
 
+    // Remove rich shelves
+    const richShelves = document.querySelectorAll("ytd-rich-shelf-renderer")
+    richShelves.forEach((shelf) => {
+      console.log("Removing rich shelf")
+      shelf.remove()
+    })
+
     // Collect all ytd-rich-item-renderer elements, excluding shorts
     const items = Array.from(
       document.querySelectorAll("ytd-rich-item-renderer")
