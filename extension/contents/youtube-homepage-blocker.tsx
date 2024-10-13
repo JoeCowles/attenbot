@@ -1,6 +1,7 @@
 import debounce from "lodash/debounce"
 import type { PlasmoCSConfig } from "plasmo"
 import React from "react"
+
 import { sendToBackground } from "@plasmohq/messaging"
 
 export const config: PlasmoCSConfig = {
@@ -10,10 +11,12 @@ export const config: PlasmoCSConfig = {
 
 const YouTubeBlocker: React.FC = () => {
   const [isInitialized, setIsInitialized] = React.useState(false)
-  const [initialProcessingDone, setInitialProcessingDone] = React.useState(false)
+  const [initialProcessingDone, setInitialProcessingDone] =
+    React.useState(false)
   const allItemsRef = React.useRef<Element[]>([])
   const processingRef = React.useRef(false)
   const lastProcessedRef = React.useRef<string[]>([])
+  const apiResponseReceivedRef = React.useRef(false)
 
   const processYouTubePage = React.useCallback(() => {
     if (processingRef.current || window.location.pathname !== "/") return
@@ -36,21 +39,29 @@ const YouTubeBlocker: React.FC = () => {
     })
 
     // Extract video information
-    const videoInfo = items.map(item => {
-      const link = item.querySelector('a#video-title-link')?.getAttribute('href')
-      const title = item.querySelector('a#video-title-link')?.getAttribute('title')
-      const channel = item.querySelector('yt-formatted-string#text.ytd-channel-name')?.textContent
+    const videoInfo = items.map((item) => {
+      const link = item
+        .querySelector("a#video-title-link")
+        ?.getAttribute("href")
+      const title = item
+        .querySelector("a#video-title-link")
+        ?.getAttribute("title")
+      const channel = item.querySelector(
+        "yt-formatted-string#text.ytd-channel-name"
+      )?.textContent
 
       return {
-        link: link ? `https://www.youtube.com${link}` : '',
-        title: title || '',
-        channel: channel || ''
+        link: link ? `https://www.youtube.com${link}` : "",
+        title: title || "",
+        channel: channel || ""
       }
     })
 
     // Check if the video links have changed since last processing
-    const currentLinks = videoInfo.map(v => v.link)
-    if (JSON.stringify(currentLinks) === JSON.stringify(lastProcessedRef.current)) {
+    const currentLinks = videoInfo.map((v) => v.link)
+    if (
+      JSON.stringify(currentLinks) === JSON.stringify(lastProcessedRef.current)
+    ) {
       processingRef.current = false
       return
     }
@@ -63,34 +74,50 @@ const YouTubeBlocker: React.FC = () => {
     sendToBackground({
       name: "filter-videos",
       body: { videos: videoInfo }
-    }).then(response => {
-      console.log('Received response from background script', response)
-      // Process the filtered videos
-      const filteredLinks = response.links
-      const filteredItems = items.filter(item => {
-        const link = item.querySelector('a#video-title-link')?.getAttribute('href')
-        return link && filteredLinks.includes(`https://www.youtube.com${link}`)
-      })
-
-      // Find the contents container
-      const contentsContainer = document.querySelector(
-        "div#contents.style-scope.ytd-rich-grid-renderer"
-      )
-
-      if (contentsContainer) {
-        // Clear the contents
-        contentsContainer.innerHTML = ""
-
-        // Add back the filtered items
-        filteredItems.forEach((item) => {
-          contentsContainer.appendChild(item)
-        })
-      }
-    }).catch(error => {
-      console.error('Error sending message or processing response:', error)
-    }).finally(() => {
-      processingRef.current = false
     })
+      .then((response) => {
+        console.log("Received response from background script", response)
+        // Process the filtered videos
+        const filteredLinks = response.links
+        const filteredItems = items.filter((item) => {
+          const link = item
+            .querySelector("a#video-title-link")
+            ?.getAttribute("href")
+          return (
+            link && filteredLinks.includes(`https://www.youtube.com${link}`)
+          )
+        })
+
+        apiResponseReceivedRef.current = true
+        if (!isInitialized && initialProcessingDone) {
+          setIsInitialized(true)
+        }
+
+        // Find the contents container
+        const contentsContainer = document.querySelector(
+          "div#contents.style-scope.ytd-rich-grid-renderer"
+        )
+
+        if (contentsContainer) {
+          // Clear the contents
+          contentsContainer.innerHTML = ""
+
+          // Add back the filtered items
+          filteredItems.forEach((item) => {
+            contentsContainer.appendChild(item)
+          })
+        }
+      })
+      .catch((error) => {
+        console.error("Error sending message or processing response:", error)
+        apiResponseReceivedRef.current = true
+        if (!isInitialized && initialProcessingDone) {
+          setIsInitialized(true)
+        }
+      })
+      .finally(() => {
+        processingRef.current = false
+      })
 
     // Remove chips
     const chipsContainer = document.querySelector(
@@ -100,7 +127,7 @@ const YouTubeBlocker: React.FC = () => {
       console.log("Removing chips container")
       chipsContainer.remove()
     }
-  }, [])
+  }, [isInitialized, initialProcessingDone])
 
   const debouncedProcessYouTubePage = React.useMemo(
     () => debounce(processYouTubePage, 200),
@@ -112,8 +139,12 @@ const YouTubeBlocker: React.FC = () => {
 
     const timer = setTimeout(() => {
       processYouTubePage()
-      setIsInitialized(true)
       setInitialProcessingDone(true)
+
+      // Check if API response has been received
+      if (apiResponseReceivedRef.current) {
+        setIsInitialized(true)
+      }
 
       const observer = new MutationObserver((mutations) => {
         if (processingRef.current) return
@@ -121,8 +152,7 @@ const YouTubeBlocker: React.FC = () => {
         const hasNewVideos = mutations.some((mutation) =>
           Array.from(mutation.addedNodes).some(
             (node) =>
-              node instanceof Element &&
-              node.matches("ytd-rich-item-renderer")
+              node instanceof Element && node.matches("ytd-rich-item-renderer")
           )
         )
 
