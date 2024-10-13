@@ -16,10 +16,14 @@ const YouTubeBlocker: React.FC = () => {
     if (processingRef.current) return
     processingRef.current = true
 
-    // Collect all ytd-rich-item-renderer elements
+    // Collect all ytd-rich-item-renderer elements, excluding shorts
     const items = Array.from(
       document.querySelectorAll("ytd-rich-item-renderer")
-    )
+    ).filter((item) => {
+      return !item.querySelector(
+        'ytm-shorts-lockup-view-model-v2, [id*="ytm-shorts"]'
+      )
+    })
     allItemsRef.current = items
 
     // Find the contents container
@@ -29,7 +33,7 @@ const YouTubeBlocker: React.FC = () => {
 
     if (contentsContainer) {
       const currentItems = Array.from(contentsContainer.children)
-      const itemsToKeep = items.slice(0, 3)
+      const itemsToKeep = items.slice(0, 10)
 
       // Only update if the content has changed
       if (
@@ -115,18 +119,7 @@ const YouTubeBlocker: React.FC = () => {
           justifyContent: "center",
           alignItems: "center",
           transition: "opacity 0.3s ease-in-out"
-        }}>
-        <div
-          style={{
-            width: "40px",
-            height: "40px",
-            border: "4px solid #ccc",
-            borderTopColor: "#333",
-            borderRadius: "50%",
-            animation: "spin 1s linear infinite"
-          }}
-        />
-      </div>
+        }}></div>
     )
   }
 
