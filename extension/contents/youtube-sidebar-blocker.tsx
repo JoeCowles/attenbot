@@ -3,7 +3,7 @@ import type { PlasmoCSConfig } from "plasmo"
 import React from "react"
 
 export const config: PlasmoCSConfig = {
-  matches: ["https://www.youtube.com/watch*"],
+  matches: ["https://www.youtube.com/*"],
   all_frames: true
 }
 
@@ -11,10 +11,16 @@ const YouTubeSidebarBlocker: React.FC = () => {
   const [isInitialized, setIsInitialized] = React.useState(false)
   const allItemsRef = React.useRef<Element[]>([])
   const processingRef = React.useRef(false)
+  const currentUrlRef = React.useRef("")
 
   const processSidebar = React.useCallback(() => {
-    if (processingRef.current) return
+    if (processingRef.current || !window.location.pathname.startsWith("/watch"))
+      return
     processingRef.current = true
+
+    const newUrl = window.location.href
+    const urlChanged = newUrl !== currentUrlRef.current
+    currentUrlRef.current = newUrl
 
     // Collect all ytd-compact-video-renderer elements, excluding shorts
     const items = Array.from(
@@ -31,17 +37,19 @@ const YouTubeSidebarBlocker: React.FC = () => {
 
     if (sidebarContainer) {
       const currentItems = Array.from(sidebarContainer.children)
-      const itemsToKeep = items.slice(0, 2) // Keep only the top 10 recommendations
+      const itemsToKeep = items.slice(0, 2) // Keep only the top 2 recommendations
 
-      // Only update if the content has changed
+      // Update if the content has changed or URL has changed
       if (
+        urlChanged ||
         currentItems.length !== itemsToKeep.length ||
         !currentItems.every((item, index) => item === itemsToKeep[index])
       ) {
+        console.log("Updating sidebar content")
         // Clear the contents
         sidebarContainer.innerHTML = ""
 
-        // Add back the top 5 items
+        // Add back the top 2 items
         itemsToKeep.forEach((item) => {
           sidebarContainer.appendChild(item)
         })
@@ -83,6 +91,28 @@ const YouTubeSidebarBlocker: React.FC = () => {
       )
       if (sidebarContainer) {
         observer.observe(sidebarContainer, { childList: true, subtree: true })
+      }
+
+      // Add scroll event listener
+      const debouncedScrollHandler = debounce(() => {
+        console.log("Scroll detected, reprocessing sidebar")
+        debouncedProcessSidebar()
+      }, 200)
+
+      window.addEventListener("scroll", debouncedScrollHandler)
+
+      // Add URL change listener
+      const urlChangeHandler = () => {
+        console.log("URL changed, reprocessing sidebar")
+        debouncedProcessSidebar()
+      }
+
+      window.addEventListener("yt-navigate-finish", urlChangeHandler)
+
+      return () => {
+        observer.disconnect()
+        window.removeEventListener("scroll", debouncedScrollHandler)
+        window.removeEventListener("yt-navigate-finish", urlChangeHandler)
       }
     }, 2000)
 

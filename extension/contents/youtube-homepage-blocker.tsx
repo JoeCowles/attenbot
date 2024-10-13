@@ -13,7 +13,7 @@ const YouTubeBlocker: React.FC = () => {
   const processingRef = React.useRef(false)
 
   const processYouTubePage = React.useCallback(() => {
-    if (processingRef.current) return
+    if (processingRef.current || window.location.pathname !== "/") return
     processingRef.current = true
 
     // Collect all ytd-rich-item-renderer elements, excluding shorts
@@ -43,7 +43,7 @@ const YouTubeBlocker: React.FC = () => {
         // Clear the contents
         contentsContainer.innerHTML = ""
 
-        // Add back the top 3 items
+        // Add back the top 10 items
         itemsToKeep.forEach((item) => {
           contentsContainer.appendChild(item)
         })
@@ -94,6 +94,28 @@ const YouTubeBlocker: React.FC = () => {
       )
       if (contentsContainer) {
         observer.observe(contentsContainer, { childList: true, subtree: true })
+      }
+
+      // Add scroll event listener
+      const debouncedScrollHandler = debounce(() => {
+        console.log("Scroll detected, reprocessing")
+        debouncedProcessYouTubePage()
+      }, 200)
+
+      window.addEventListener("scroll", debouncedScrollHandler)
+
+      // Add URL change listener
+      const urlChangeHandler = () => {
+        console.log("URL changed, reprocessing")
+        debouncedProcessYouTubePage()
+      }
+
+      window.addEventListener("yt-navigate-finish", urlChangeHandler)
+
+      return () => {
+        observer.disconnect()
+        window.removeEventListener("scroll", debouncedScrollHandler)
+        window.removeEventListener("yt-navigate-finish", urlChangeHandler)
       }
     }, 2000)
 
