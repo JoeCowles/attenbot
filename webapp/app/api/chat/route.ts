@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { createClient } from "@/utils/supabase/server";
 
-export const vidSchema = z.object({
+const vidSchema = z.object({
   links: z.array(z.string()),
 });
 

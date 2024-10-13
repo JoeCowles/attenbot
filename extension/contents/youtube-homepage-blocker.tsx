@@ -16,7 +16,7 @@ interface VideoInfo {
 }
 
 const YouTubeBlocker: React.FC = () => {
-  const [isInitialized, setIsInitialized] = React.useState<boolean>(false)
+  const [isLoading, setIsLoading] = React.useState(true)
   const processingRef = React.useRef<boolean>(false)
   const lastProcessedUrlRef = React.useRef<string>("")
   const lastProcessedVideosRef = React.useRef<string[]>([])
@@ -90,6 +90,7 @@ const YouTubeBlocker: React.FC = () => {
       console.error('Error processing YouTube page:', error)
     } finally {
       processingRef.current = false
+      setIsLoading(false)
     }
   }, [])
 
@@ -101,73 +102,89 @@ const YouTubeBlocker: React.FC = () => {
   React.useEffect(() => {
     const timer = setTimeout(() => {
       processYouTubePage()
-      setIsInitialized(true)
+    }, 8000)
 
-      const observer = new MutationObserver((mutations: MutationRecord[]) => {
-        if (processingRef.current) return
+    const observer = new MutationObserver((mutations: MutationRecord[]) => {
+      if (processingRef.current) return
 
-        const hasNewVideos = mutations.some((mutation) =>
-          Array.from(mutation.addedNodes).some(
-            (node): node is Element => node instanceof Element && node.matches("ytd-rich-item-renderer")
-          )
+      const hasNewVideos = mutations.some((mutation) =>
+        Array.from(mutation.addedNodes).some(
+          (node): node is Element => node instanceof Element && node.matches("ytd-rich-item-renderer")
         )
-
-        if (hasNewVideos) {
-          console.log("New videos detected, reprocessing page")
-          debouncedProcessYouTubePage()
-        }
-      })
-
-      const contentsContainer = document.querySelector<HTMLElement>(
-        "div#contents.style-scope.ytd-rich-grid-renderer"
       )
-      if (contentsContainer) {
-        observer.observe(contentsContainer, { childList: true, subtree: true })
-      }
 
-      // Add URL change listener
-      const urlChangeHandler = (): void => {
-        if (!processingRef.current) {
-          console.log("URL changed, reprocessing")
-          debouncedProcessYouTubePage()
-        }
+      if (hasNewVideos) {
+        console.log("New videos detected, reprocessing page")
+        debouncedProcessYouTubePage()
       }
+    })
 
-      window.addEventListener("yt-navigate-finish", urlChangeHandler)
+    const contentsContainer = document.querySelector<HTMLElement>(
+      "div#contents.style-scope.ytd-rich-grid-renderer"
+    )
+    if (contentsContainer) {
+      observer.observe(contentsContainer, { childList: true, subtree: true })
+    }
 
-      return () => {
-        observer.disconnect()
-        window.removeEventListener("yt-navigate-finish", urlChangeHandler)
+    // Add URL change listener
+    const urlChangeHandler = (): void => {
+      if (!processingRef.current) {
+        console.log("URL changed, reprocessing")
+        debouncedProcessYouTubePage()
       }
-    }, 2000)
+    }
+
+    window.addEventListener("yt-navigate-finish", urlChangeHandler)
 
     return () => {
       clearTimeout(timer)
       debouncedProcessYouTubePage.cancel()
+      observer.disconnect()
+      window.removeEventListener("yt-navigate-finish", urlChangeHandler)
     }
   }, [debouncedProcessYouTubePage, processYouTubePage])
 
-  if (!isInitialized) {
-    return (
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        backgroundColor: "rgba(0, 0, 0, 0.7)",
+        zIndex: 2147483647,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        color: "white",
+        fontFamily: "Arial, sans-serif",
+        opacity: isLoading ? 1 : 0,
+        pointerEvents: isLoading ? "auto" : "none",
+        transition: "opacity 0.3s ease-in-out"
+      }}
+    >
       <div
         style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          backgroundColor: "rgb(0, 0, 0)",
-          zIndex: 9999,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          transition: "opacity 0.3s ease-in-out"
+          border: "4px solid #f3f3f3",
+          borderTop: "4px solid #3498db",
+          borderRadius: "50%",
+          width: "40px",
+          height: "40px",
+          animation: "spin 1s linear infinite",
+          marginBottom: "20px"
         }}
       />
-    )
-  }
-
-  return null
+      <p>Cleaning things up for you...</p>
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
+  )
 }
 
 export default YouTubeBlocker
