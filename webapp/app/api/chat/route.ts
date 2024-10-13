@@ -4,6 +4,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { createClient } from "@/utils/supabase/server";
 
+
+function corsHandler(request: NextRequest, response: NextResponse) {
+  const origin = request.headers.get('origin') || '*'
+  response.headers.set('Access-Control-Allow-Origin', origin)
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  response.headers.set('Access-Control-Allow-Credentials', 'true')
+  return response
+}
+
+
+
 const vidSchema = z.object({
   links: z.array(z.string()),
 });
@@ -11,6 +23,7 @@ const vidSchema = z.object({
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
 
 export async function POST(request: NextRequest) {
   const supabase = createClient()

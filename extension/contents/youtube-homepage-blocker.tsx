@@ -102,7 +102,7 @@ const YouTubeBlocker: React.FC = () => {
   React.useEffect(() => {
     const timer = setTimeout(() => {
       processYouTubePage()
-    }, 8000)
+    }, 2000)
 
     const observer = new MutationObserver((mutations: MutationRecord[]) => {
       if (processingRef.current) return
@@ -153,7 +153,7 @@ const YouTubeBlocker: React.FC = () => {
         width: "100%",
         height: "100%",
         backgroundColor: "rgba(0, 0, 0, 0.7)",
-        zIndex: 2147483647,
+        zIndex: 999,
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
@@ -172,6 +172,8 @@ const YouTubeBlocker: React.FC = () => {
           borderRadius: "50%",
           width: "40px",
           height: "40px",
+          zIndex: 2147483647,
+          opacity: isLoading ? 1 : 0,
           animation: "spin 1s linear infinite",
           marginBottom: "20px"
         }}
