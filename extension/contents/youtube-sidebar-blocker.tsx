@@ -36,6 +36,13 @@ const YouTubeSidebarBlocker: React.FC = () => {
     )
 
     if (sidebarContainer) {
+      // Remove reel shelves
+      const reelShelves = sidebarContainer.querySelectorAll("ytd-reel-shelf-renderer")
+      reelShelves.forEach((shelf) => {
+        console.log("Removing reel shelf from sidebar")
+        shelf.remove()
+      })
+
       const currentItems = Array.from(sidebarContainer.children)
       const itemsToKeep = items.slice(0, 2) // Keep only the top 2 recommendations
 
