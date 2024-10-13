@@ -8,121 +8,106 @@ export const config: PlasmoCSConfig = {
   all_frames: true
 }
 
+interface VideoInfo {
+  link: string
+  title: string
+  channel: string
+}
+
 const YouTubeBlocker: React.FC = () => {
-  const [isInitialized, setIsInitialized] = React.useState(false)
-  const [initialProcessingDone, setInitialProcessingDone] = React.useState(false)
-  const allItemsRef = React.useRef<Element[]>([])
-  const processingRef = React.useRef(false)
-  const lastProcessedRef = React.useRef<string[]>([])
+  const [isInitialized, setIsInitialized] = React.useState<boolean>(false)
+  const processingRef = React.useRef<boolean>(false)
+  const lastProcessedUrlRef = React.useRef<string>("")
+  const lastProcessedVideosRef = React.useRef<string[]>([])
 
-  const processYouTubePage = React.useCallback(() => {
+  const processYouTubePage = React.useCallback(async (): Promise<void> => {
     if (processingRef.current || window.location.pathname !== "/") return
+    
+    const currentUrl = window.location.href
+    if (currentUrl === lastProcessedUrlRef.current) return
+    
     processingRef.current = true
+    lastProcessedUrlRef.current = currentUrl
 
-    // Remove rich shelves
-    const richShelves = document.querySelectorAll("ytd-rich-shelf-renderer")
-    richShelves.forEach((shelf) => {
-      console.log("Removing rich shelf")
-      shelf.remove()
-    })
+    try {
+      // Remove rich shelves
+      document.querySelectorAll("ytd-rich-shelf-renderer").forEach(shelf => shelf.remove())
 
-    // Collect all ytd-rich-item-renderer elements, excluding shorts
-    const items = Array.from(
-      document.querySelectorAll("ytd-rich-item-renderer")
-    ).filter((item) => {
-      return !item.querySelector(
-        'ytm-shorts-lockup-view-model-v2, [id*="ytm-shorts"]'
-      )
-    })
+      // Collect all ytd-rich-item-renderer elements, excluding shorts
+      const items = Array.from(
+        document.querySelectorAll<HTMLElement>("ytd-rich-item-renderer")
+      ).filter(item => !item.querySelector('ytm-shorts-lockup-view-model-v2, [id*="ytm-shorts"]'))
 
-    // Extract video information
-    const videoInfo = items.map(item => {
-      const link = item.querySelector('a#video-title-link')?.getAttribute('href')
-      const title = item.querySelector('a#video-title-link')?.getAttribute('title')
-      const channel = item.querySelector('yt-formatted-string#text.ytd-channel-name')?.textContent
+      // Extract video information
+      const videoInfo: VideoInfo[] = items.map(item => ({
+        link: `https://www.youtube.com${item.querySelector('a#video-title-link')?.getAttribute('href') || ''}`,
+        title: item.querySelector('a#video-title-link')?.getAttribute('title') || '',
+        channel: item.querySelector('yt-formatted-string#text.ytd-channel-name')?.textContent || ''
+      }))
 
-      return {
-        link: link ? `https://www.youtube.com${link}` : '',
-        title: title || '',
-        channel: channel || ''
+      // Check if the video links have changed since last processing
+      const currentVideoLinks = videoInfo.map(v => v.link)
+      if (JSON.stringify(currentVideoLinks) === JSON.stringify(lastProcessedVideosRef.current)) {
+        return
       }
-    })
 
-    // Check if the video links have changed since last processing
-    const currentLinks = videoInfo.map(v => v.link)
-    if (JSON.stringify(currentLinks) === JSON.stringify(lastProcessedRef.current)) {
-      processingRef.current = false
-      return
-    }
+      lastProcessedVideosRef.current = currentVideoLinks
 
-    // Update lastProcessedRef
-    lastProcessedRef.current = currentLinks
+      const response = await sendToBackground<{ videos: VideoInfo[] }>({
+        name: "filter-videos",
+        body: { videos: videoInfo }
+      })
 
-    // Send video information to background script
-    console.log("Attempting to send message to background script", videoInfo)
-    sendToBackground({
-      name: "filter-videos",
-      body: { videos: videoInfo }
-    }).then(response => {
       console.log('Received response from background script', response)
-      // Process the filtered videos
+      
       const filteredLinks = response.links
       const filteredItems = items.filter(item => {
         const link = item.querySelector('a#video-title-link')?.getAttribute('href')
         return link && filteredLinks.includes(`https://www.youtube.com${link}`)
       })
 
-      // Find the contents container
-      const contentsContainer = document.querySelector(
+      const contentsContainer = document.querySelector<HTMLElement>(
         "div#contents.style-scope.ytd-rich-grid-renderer"
       )
 
       if (contentsContainer) {
-        // Clear the contents
         contentsContainer.innerHTML = ""
-
-        // Add back the filtered items
         filteredItems.forEach((item) => {
           contentsContainer.appendChild(item)
         })
       }
-    }).catch(error => {
-      console.error('Error sending message or processing response:', error)
-    }).finally(() => {
-      processingRef.current = false
-    })
 
-    // Remove chips
-    const chipsContainer = document.querySelector(
-      "#scroll-container > .ytd-feed-filter-chip-bar-renderer"
-    )
-    if (chipsContainer) {
-      console.log("Removing chips container")
-      chipsContainer.remove()
+      // Remove chips
+      const chipsContainer = document.querySelector<HTMLElement>(
+        "#scroll-container > .ytd-feed-filter-chip-bar-renderer"
+      )
+      if (chipsContainer) {
+        console.log("Removing chips container")
+        chipsContainer.remove()
+      }
+    } catch (error) {
+      console.error('Error processing YouTube page:', error)
+    } finally {
+      processingRef.current = false
     }
   }, [])
 
   const debouncedProcessYouTubePage = React.useMemo(
-    () => debounce(processYouTubePage, 200),
+    () => debounce(processYouTubePage, 500),
     [processYouTubePage]
   )
 
   React.useEffect(() => {
-    if (initialProcessingDone) return
-
     const timer = setTimeout(() => {
       processYouTubePage()
       setIsInitialized(true)
-      setInitialProcessingDone(true)
 
-      const observer = new MutationObserver((mutations) => {
+      const observer = new MutationObserver((mutations: MutationRecord[]) => {
         if (processingRef.current) return
 
         const hasNewVideos = mutations.some((mutation) =>
           Array.from(mutation.addedNodes).some(
-            (node) =>
-              node instanceof Element &&
-              node.matches("ytd-rich-item-renderer")
+            (node): node is Element => node instanceof Element && node.matches("ytd-rich-item-renderer")
           )
         )
 
@@ -132,25 +117,15 @@ const YouTubeBlocker: React.FC = () => {
         }
       })
 
-      const contentsContainer = document.querySelector(
+      const contentsContainer = document.querySelector<HTMLElement>(
         "div#contents.style-scope.ytd-rich-grid-renderer"
       )
       if (contentsContainer) {
         observer.observe(contentsContainer, { childList: true, subtree: true })
       }
 
-      // Add scroll event listener
-      const debouncedScrollHandler = debounce(() => {
-        if (!processingRef.current) {
-          console.log("Scroll detected, reprocessing")
-          debouncedProcessYouTubePage()
-        }
-      }, 200)
-
-      window.addEventListener("scroll", debouncedScrollHandler)
-
       // Add URL change listener
-      const urlChangeHandler = () => {
+      const urlChangeHandler = (): void => {
         if (!processingRef.current) {
           console.log("URL changed, reprocessing")
           debouncedProcessYouTubePage()
@@ -161,7 +136,6 @@ const YouTubeBlocker: React.FC = () => {
 
       return () => {
         observer.disconnect()
-        window.removeEventListener("scroll", debouncedScrollHandler)
         window.removeEventListener("yt-navigate-finish", urlChangeHandler)
       }
     }, 2000)
@@ -170,9 +144,8 @@ const YouTubeBlocker: React.FC = () => {
       clearTimeout(timer)
       debouncedProcessYouTubePage.cancel()
     }
-  }, [debouncedProcessYouTubePage, initialProcessingDone])
+  }, [debouncedProcessYouTubePage, processYouTubePage])
 
-  // Add a subtle loading overlay
   if (!isInitialized) {
     return (
       <div
@@ -182,13 +155,14 @@ const YouTubeBlocker: React.FC = () => {
           left: 0,
           width: "100%",
           height: "100%",
-          backgroundColor: "rgb(0, 0, 0)", // Solid black, no transparency
+          backgroundColor: "rgb(0, 0, 0)",
           zIndex: 9999,
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
           transition: "opacity 0.3s ease-in-out"
-        }}></div>
+        }}
+      />
     )
   }
 
