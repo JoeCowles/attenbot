@@ -1,5 +1,6 @@
 import type { PlasmoMessaging } from "@plasmohq/messaging"
 import { Storage } from "@plasmohq/storage"
+
 import { supabase } from "~core/supabase"
 
 const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
@@ -9,8 +10,9 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 
   await supabase.auth.setSession(req.body)
 
-  const storage = new Storage()
+  const storage = new Storage({ area: "local" })
   await storage.set("selectedStudentId", req.body.student_id)
+  console.log("Selected student ID:", req.body.student_id)
   res.send({ success: true })
 }
 

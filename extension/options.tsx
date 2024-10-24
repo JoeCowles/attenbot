@@ -180,8 +180,8 @@ function IndexOptions() {
         ) : (
           students.map((student) => (
             <button
-              key={student.id}
-              onClick={() => handleStudentSelect(student.id)}
+              key={student.student_id}
+              onClick={() => handleStudentSelect(student.student_id)}
               className="px-4 py-2 mb-2 text-white bg-blue-500 rounded hover:bg-blue-600 w-60">
               {student.name}
             </button>

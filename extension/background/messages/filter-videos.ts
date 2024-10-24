@@ -7,20 +7,20 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
   const { videos } = req.body
   console.log(videos)
 
-  const storage = new Storage()
+  const storage = new Storage({ area: "local" })
   const studentId = await storage.get("selectedStudentId")
 
   if (!studentId) {
     console.error("No student ID found")
-    res.send({ error: 'No student ID found' })
+    res.send({ error: "No student ID found" })
     return
   }
 
   try {
-    const response = await fetch('http://localhost:3000/api/chat', {
-      method: 'POST',
+    const response = await fetch("http://localhost:3000/api/chat", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         prompt: `Filter these YouTube videos based on the filters: ${JSON.stringify(videos)}`,
@@ -36,8 +36,8 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
     console.log(result)
     res.send(result)
   } catch (error) {
-    console.error('Error filtering videos:', error)
-    res.send({ error: 'Failed to filter videos' })
+    console.error("Error filtering videos:", error)
+    res.send({ error: "Failed to filter videos" })
   }
 }
 
